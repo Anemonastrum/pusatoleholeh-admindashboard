@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import Sidebar from '../partials/Sidebar';
 import Header from '../partials/Header';
@@ -24,6 +24,34 @@ function BlogManagement() {
     coverImage: null,
     images: []
   });
+
+  const $cdnUrl = import.meta.env.VITE_CDN_URL || 'http://localhost:8000';
+
+  const normalizeUrl = useCallback(
+    (url) => {
+      if (!url) return null;
+      
+      try {
+        // Buat URL object untuk parsing
+        const urlObj = new URL(url.replace(/\\/g, "/"));
+        
+        // Ambil pathname dari URL (bagian setelah host)
+        const pathname = urlObj.pathname;
+        
+        // Gabungkan dengan CDN URL
+        return new URL(pathname, $cdnUrl).toString();
+      } catch (e) {
+        // Jika URL invalid, coba cara alternatif
+        const cleanPath = url
+          .replace(/^(?:https?:)?(?:\/\/)?[^/]+/, '') // Hapus protocol dan host (perbaikan escape character)
+          .replace(/\\/g, "/")                         // Normalize slashes
+          .replace(/^\/+/, '/');                       // Pastikan hanya ada satu leading slash
+
+        return `${$cdnUrl}${cleanPath}`;
+      }
+    },
+    [$cdnUrl]
+  );
 
   // Fetch initial data
   useEffect(() => {
@@ -61,15 +89,16 @@ function BlogManagement() {
   };
 
   const handleEditBlog = (article) => {
+    console.log('Edit article:', article); // Debug log
     setIsEditing(true);
     setNewBlog({
       _id: article._id,
       title: article.title,
       content: article.content,
-      categoryId: article.categoryId._id,
-      productIds: article.productIds.map(product => product._id),
+      categoryId: article.categoryId?._id || '',
+      productIds: article.productIds?.map(product => product._id) || [],
       coverImage: article.cover?.url || null,
-      images: article.images || []
+      images: article.images?.map(img => img.url) || []
     });
     setModalOpen(true);
   };
@@ -104,11 +133,22 @@ function BlogManagement() {
       }
 
       setModalOpen(false);
+      setIsEditing(false); // Reset editing state
+      setNewBlog({ // Reset form
+        title: '',
+        content: '',
+        categoryId: '',
+        productIds: [],
+        coverImage: null,
+        images: []
+      });
+      
       toast.success(isEditing ? 'Article updated successfully' : 'Article created successfully');
       // Refresh articles list
       const updatedArticles = await getAllArticles();
       setArticles(updatedArticles);
     } catch (error) {
+      console.error('Submit error:', error); // Debug log
       toast.error(error.message || 'Failed to save article');
     }
   };
@@ -171,7 +211,7 @@ function BlogManagement() {
                     <div className="relative aspect-video">
                       {article.cover ? (
                         <img
-                          src={article.cover.url}
+                          src={normalizeUrl(article.cover.url)}
                           alt={article.title}
                           className="w-full h-full object-cover"
                         />
@@ -198,7 +238,7 @@ function BlogManagement() {
                           {article.images?.slice(0, 3).map((image, index) => (
                             <img
                               key={index}
-                              src={image.url}
+                              src={normalizeUrl(image.url)}
                               alt={`Article image ${index + 1}`}
                               className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 object-cover"
                             />
@@ -249,6 +289,18 @@ function BlogManagement() {
         newBlog={newBlog}
         setNewBlog={setNewBlog}
         isEditing={isEditing}
+        onClose={() => {
+          setModalOpen(false);
+          setIsEditing(false);
+          setNewBlog({
+            title: '',
+            content: '',
+            categoryId: '',
+            productIds: [],
+            coverImage: null,
+            images: []
+          });
+        }}
       />
     </div>
   );

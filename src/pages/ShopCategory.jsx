@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import Sidebar from '../partials/Sidebar';
 import Header from '../partials/Header';
@@ -18,6 +18,34 @@ function ShopCategory() {
     description: '',
     icon: null
   });
+
+  const $cdnUrl = import.meta.env.VITE_CDN_URL || 'http://localhost:8000';
+
+  const normalizeUrl = useCallback(
+    (url) => {
+      if (!url) return null;
+      
+      try {
+        // Buat URL object untuk parsing
+        const urlObj = new URL(url.replace(/\\/g, "/"));
+        
+        // Ambil pathname dari URL (bagian setelah host)
+        const pathname = urlObj.pathname;
+        
+        // Gabungkan dengan CDN URL
+        return new URL(pathname, $cdnUrl).toString();
+      } catch (e) {
+        // Jika URL invalid, coba cara alternatif
+        const cleanPath = url
+          .replace(/^(?:https?:)?(?:\/\/)?[^/]+/, '') // Hapus protocol dan host (perbaikan escape character)
+          .replace(/\\/g, "/")                         // Normalize slashes
+          .replace(/^\/+/, '/');                       // Pastikan hanya ada satu leading slash
+
+        return `${$cdnUrl}${cleanPath}`;
+      }
+    },
+    [$cdnUrl]
+  );
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -171,13 +199,21 @@ function ShopCategory() {
                           <td className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
                             <div className="flex items-center">
                               {category.image && (
-                                <img src={category.image.url} alt="" className="w-6 h-6 rounded-full mr-2" />
+                                <img 
+                                  src={normalizeUrl(category.image.url)} 
+                                  alt="" 
+                                  className="w-6 h-6 rounded-full mr-2" 
+                                />
                               )}
-                              <div className="font-medium text-gray-800 dark:text-gray-100">{category.name}</div>
+                              <div className="font-medium text-gray-800 dark:text-gray-100">
+                                {category.name}
+                              </div>
                             </div>
                           </td>
                           <td className="px-2 first:pl-5 last:pr-5 py-3">
-                            <div className="text-left max-w-xs truncate">{category.description}</div>
+                            <div className="text-left max-w-xs truncate">
+                              {category.description}
+                            </div>
                           </td>
                           <td className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
                             <div className="flex justify-end space-x-3">
