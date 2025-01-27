@@ -18,6 +18,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export const getBanners = async () => {
+  try {
+    const response = await api.get(`${API_URL}/hero/`);
+    return response.data.banners || [];
+  } catch (error) {
+    console.error('Error in getBanners:', error);
+    throw error.response?.data || error;
+  }
+};
+
 export const uploadBanner = async (bannerData) => {
   try {
     const formData = new FormData();
