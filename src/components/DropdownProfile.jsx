@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Transition from '../utils/Transition';
+import Cookies from 'js-cookie';
 
 function DropdownProfile({
   align
 }) {
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const navigate = useNavigate();
 
   const trigger = useRef(null);
   const dropdown = useRef(null);
@@ -31,6 +33,15 @@ function DropdownProfile({
     document.addEventListener('keydown', keyHandler);
     return () => document.removeEventListener('keydown', keyHandler);
   });
+
+  const handleSignOut = () => {
+    // Clear token from cookies
+    Cookies.remove('token');
+    // Close dropdown
+    setDropdownOpen(false);
+    // Redirect to login page
+    navigate('/login');
+  };
 
   return (
     <div className="relative inline-flex">
@@ -71,13 +82,12 @@ function DropdownProfile({
           </div>
           <ul>
             <li>
-              <Link
-                className="font-medium text-sm text-violet-500 hover:text-violet-600 dark:hover:text-violet-400 flex items-center py-1 px-3"
-                to="/signin"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
+              <button
+                className="font-medium text-sm text-violet-500 hover:text-violet-600 dark:hover:text-violet-400 flex items-center py-1 px-3 w-full text-left"
+                onClick={handleSignOut}
               >
                 Sign Out
-              </Link>
+              </button>
             </li>
           </ul>
         </div>

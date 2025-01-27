@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Transition from '../../utils/Transition';
+import { getCategories, getProductsByCategory } from '../../api/category';
+import toast from 'react-hot-toast';
 
 function AddBlogModal({
   modalOpen,
@@ -9,6 +11,60 @@ function AddBlogModal({
   setNewBlog,
   isEditing = false
 }) {
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [categoryProducts, setCategoryProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setIsLoadingCategories(true);
+        const categoriesData = await getCategories();
+        console.log('Categories data:', categoriesData); // Debug log
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        toast.error('Failed to load categories. Please try again.');
+        setCategories([]);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
+    if (modalOpen) { // Only fetch when modal is open
+      fetchCategories();
+    }
+  }, [modalOpen]);
+
+  // Fetch products when category changes
+  useEffect(() => {
+    const fetchCategoryProducts = async () => {
+      if (newBlog.categoryId) {
+        try {
+          setIsLoadingProducts(true);
+          const products = await getProductsByCategory(newBlog.categoryId);
+          console.log('Products data:', products); // Debug log
+          setCategoryProducts(products);
+        } catch (error) {
+          console.error('Failed to fetch products:', error);
+          toast.error('Failed to load products. Please try again.');
+          setCategoryProducts([]);
+        } finally {
+          setIsLoadingProducts(false);
+        }
+      } else {
+        setCategoryProducts([]);
+      }
+    };
+
+    if (modalOpen && newBlog.categoryId) { // Only fetch when modal is open and category is selected
+      fetchCategoryProducts();
+    }
+  }, [newBlog.categoryId, modalOpen]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(e);
@@ -45,7 +101,7 @@ function AddBlogModal({
           <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700/60">
             <div className="flex justify-between items-center">
               <div className="font-semibold text-gray-800 dark:text-gray-100">
-                {isEditing ? 'Edit Blog Post' : 'Add New Blog Post'}
+                {isEditing ? 'Edit Article' : 'Add New Article'}
               </div>
               <button className="text-gray-400 hover:text-gray-500" onClick={() => setModalOpen(false)}>
                 <div className="sr-only">Close</div>
@@ -59,51 +115,102 @@ function AddBlogModal({
           <div className="px-5 py-4">
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
-                {/* Blog Title */}
+                {/* Title */}
                 <div>
                   <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="title">
-                    Blog Title
+                    Title
                   </label>
                   <input
                     id="title"
-                    className="form-input w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700/60 bg-white dark:bg-gray-800"
+                    className="form-input w-full px-2 py-1"
                     type="text"
                     required
                     value={newBlog.title}
                     onChange={(e) => setNewBlog({ ...newBlog, title: e.target.value })}
-                    placeholder="Enter blog title..."
                   />
                 </div>
-                {/* Author */}
+
+                {/* Category */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="author">
-                    Author
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="category">
+                    Category
                   </label>
-                  <input
-                    id="author"
-                    className="form-input w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700/60 bg-white dark:bg-gray-800"
-                    type="text"
-                    required
-                    value={newBlog.author}
-                    onChange={(e) => setNewBlog({ ...newBlog, author: e.target.value })}
-                    placeholder="Enter author name..."
-                  />
+                  {isLoadingCategories ? (
+                    <div className="text-sm text-gray-500">Loading categories...</div>
+                  ) : (
+                    <select
+                      id="category"
+                      className="form-select w-full"
+                      required
+                      value={newBlog.categoryId}
+                      onChange={(e) => {
+                        setNewBlog({ 
+                          ...newBlog, 
+                          categoryId: e.target.value,
+                          productIds: [] // Reset selected products when category changes
+                        });
+                        setSelectedProducts([]);
+                      }}
+                    >
+                      <option value="">Select category</option>
+                      {categories.map((category) => (
+                        <option key={category._id} value={category._id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
-                {/* Blog Body */}
+
+                {/* Products */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="body">
-                    Blog Content
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1">
+                    Related Products
+                  </label>
+                  {isLoadingProducts ? (
+                    <div className="text-sm text-gray-500">Loading products...</div>
+                  ) : newBlog.categoryId ? (
+                    categoryProducts.length > 0 ? (
+                      <select
+                        multiple
+                        className="form-multiselect w-full"
+                        value={selectedProducts}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions, option => option.value);
+                          setSelectedProducts(selected);
+                          setNewBlog({ ...newBlog, productIds: selected });
+                        }}
+                      >
+                        {categoryProducts.map((product) => (
+                          <option key={product._id} value={product._id}>
+                            {product.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="text-sm text-gray-500">No products available in this category</div>
+                    )
+                  ) : (
+                    <div className="text-sm text-gray-500">Please select a category first</div>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="content">
+                    Content
                   </label>
                   <textarea
-                    id="body"
+                    id="content"
                     className="form-textarea w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700/60 bg-white dark:bg-gray-800"
                     rows="8"
                     required
-                    value={newBlog.body}
-                    onChange={(e) => setNewBlog({ ...newBlog, body: e.target.value })}
-                    placeholder="Write your blog content here..."
+                    value={newBlog.content}
+                    onChange={(e) => setNewBlog({ ...newBlog, content: e.target.value })}
+                    placeholder="Write your article content here..."
                   />
                 </div>
+
                 {/* Cover Image */}
                 <div>
                   <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="coverImage">
@@ -129,28 +236,29 @@ function AddBlogModal({
                     </div>
                   )}
                 </div>
-                {/* Blog Images */}
+
+                {/* Article Images */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="blogImages">
-                    Blog Images
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="images">
+                    Article Images
                   </label>
                   <input
-                    id="blogImages"
+                    id="images"
                     className="form-input w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700/60 bg-white dark:bg-gray-800"
                     type="file"
                     accept="image/*"
                     multiple
                     onChange={(e) => {
                       const files = Array.from(e.target.files);
-                      setNewBlog({ ...newBlog, blogImages: files });
+                      setNewBlog({ ...newBlog, images: files });
                     }}
                   />
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    You can select multiple images. Recommended size: 800x600px
+                    You can select up to 5 images
                   </p>
-                  {newBlog.blogImages && newBlog.blogImages.length > 0 && (
+                  {newBlog.images && newBlog.images.length > 0 && (
                     <div className="mt-2 grid grid-cols-3 gap-2">
-                      {Array.from(newBlog.blogImages).map((image, index) => (
+                      {Array.from(newBlog.images).map((image, index) => (
                         <img
                           key={index}
                           src={typeof image === 'string' ? image : URL.createObjectURL(image)}
@@ -161,6 +269,7 @@ function AddBlogModal({
                     </div>
                   )}
                 </div>
+
                 {/* Active Status */}
                 <div className="flex items-center">
                   <input
@@ -187,7 +296,7 @@ function AddBlogModal({
                   type="submit"
                   className="btn-sm bg-violet-500 hover:bg-violet-600 text-white ml-3"
                 >
-                  {isEditing ? 'Save Changes' : 'Publish Post'}
+                  {isEditing ? 'Update Article' : 'Create Article'}
                 </button>
               </div>
             </form>
