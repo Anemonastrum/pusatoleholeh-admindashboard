@@ -1,15 +1,38 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { loginUser } from '../api/auth';
+import Cookies from 'js-cookie';
+import { jwtDecode } from 'jwt-decode';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Add your login logic here
-    console.log('Login attempt with:', { email, password, rememberMe });
+    try {
+      const response = await loginUser({ email, password });
+      const { token } = response;
+      
+      // Save token to cookie
+      Cookies.set('token', token, { expires: rememberMe ? 7 : 1 });
+      
+      // Decode token to get user role
+      const decoded = jwtDecode(token);
+      
+      // Check if user is admin
+      if (decoded.role === 'admin') {
+        navigate('/dashboard');
+      } else {
+        setError('Unauthorized access. Admin only.');
+        Cookies.remove('token');
+      }
+    } catch (err) {
+      setError(err.message || 'Login failed. Please try again.');
+    }
   };
 
   return (
@@ -29,6 +52,11 @@ function Login() {
 
           {/* Form */}
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <span className="block sm:inline">{error}</span>
+              </div>
+            )}
             <div className="space-y-4 rounded-lg p-4 shadow-sm bg-white dark:bg-gray-800">
               {/* Email */}
               <div>

@@ -7,8 +7,9 @@ function AddCategoryModal({
   onSubmit,
   newCategory,
   setNewCategory,
+  isEditing
 }) {
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     onSubmit(e);
   };
@@ -43,7 +44,9 @@ function AddCategoryModal({
           {/* Modal header */}
           <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700/60">
             <div className="flex justify-between items-center">
-              <div className="font-semibold text-gray-800 dark:text-gray-100">Add New Category</div>
+              <div className="font-semibold text-gray-800 dark:text-gray-100">
+                {isEditing ? 'Edit Category' : 'Add New Category'}
+              </div>
               <button className="text-gray-400 hover:text-gray-500" onClick={() => setModalOpen(false)}>
                 <div className="sr-only">Close</div>
                 <svg className="w-4 h-4 fill-current">
@@ -80,6 +83,7 @@ function AddCategoryModal({
                     id="description"
                     className="form-textarea w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700/60 bg-white dark:bg-gray-800"
                     rows="3"
+                    required
                     value={newCategory.description}
                     onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
                     placeholder="Enter category description..."
@@ -101,19 +105,6 @@ function AddCategoryModal({
                     Optional. Recommended size: 32x32px
                   </p>
                 </div>
-                {/* Active Status */}
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="active"
-                    className="form-checkbox"
-                    checked={newCategory.active}
-                    onChange={(e) => setNewCategory({ ...newCategory, active: e.target.checked })}
-                  />
-                  <label className="text-sm text-gray-800 dark:text-gray-300 ml-2" htmlFor="active">
-                    Active
-                  </label>
-                </div>
               </div>
               <div className="flex items-center justify-end mt-6">
                 <button
@@ -127,7 +118,7 @@ function AddCategoryModal({
                   type="submit"
                   className="btn-sm bg-violet-500 hover:bg-violet-600 text-white ml-3"
                 >
-                  Add Category
+                  {isEditing ? 'Update Category' : 'Add Category'}
                 </button>
               </div>
             </form>

@@ -1,46 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import Sidebar from '../partials/Sidebar';
 import Header from '../partials/Header';
 import FilterButton from '../components/DropdownFilter';
 import AddCategoryModal from '../partials/modals/AddCategoryModal';
+import { getAllCategories, addNewCategory, updateCategory, deleteCategory, uploadCategoryImage } from '../api/category';
+import toast from 'react-hot-toast';
 
 function ShopCategory() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [categories, setCategories] = useState([
-    {
-      id: 1,
-      name: 'Electronics',
-      description: 'Electronic devices and accessories',
-      icon: '/path/to/electronics-icon.png',
-      active: true,
-      productsCount: 150
-    },
-    {
-      id: 2,
-      name: 'Fashion',
-      description: 'Clothing and accessories',
-      icon: '/path/to/fashion-icon.png',
-      active: true,
-      productsCount: 75
-    },
-  ]);
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [newCategory, setNewCategory] = useState({
     name: '',
     description: '',
-    icon: null,
-    active: true
+    icon: null
   });
+
+  // Fetch categories
+  const fetchCategories = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getAllCategories();
+      setCategories(data);
+    } catch (error) {
+      toast.error(error.message || 'Failed to fetch categories');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   const handleAddCategory = () => {
     setIsEditing(false);
     setNewCategory({
       name: '',
       description: '',
-      icon: null,
-      active: true
+      icon: null
     });
     setModalOpen(true);
   };
@@ -48,39 +49,65 @@ function ShopCategory() {
   const handleEditCategory = (category) => {
     setIsEditing(true);
     setNewCategory({
-      ...category,
-      icon: null // Reset icon to prevent showing old file input
+      _id: category._id,
+      name: category.name,
+      description: category.description,
+      icon: null
     });
     setModalOpen(true);
   };
 
-  const handleSubmitCategory = (e) => {
+  const handleSubmitCategory = async (e) => {
     e.preventDefault();
-    if (isEditing) {
-      setCategories(categories.map(cat => 
-        cat.id === newCategory.id ? { ...newCategory, icon: newCategory.icon || cat.icon } : cat
-      ));
-    } else {
-      const newId = categories.length > 0 ? Math.max(...categories.map(c => c.id)) + 1 : 1;
-      setCategories([...categories, { ...newCategory, id: newId, productsCount: 0 }]);
+    try {
+      let response;
+      
+      if (isEditing && newCategory._id) {
+        response = await updateCategory(newCategory._id, {
+          name: newCategory.name,
+          description: newCategory.description
+        });
+        
+        if (newCategory.icon) {
+          await uploadCategoryImage(newCategory._id, newCategory.icon);
+        }
+        
+        toast.success('Category updated successfully');
+      } else {
+        response = await addNewCategory({
+          name: newCategory.name,
+          description: newCategory.description
+        });
+        
+        if (newCategory.icon && response.category._id) {
+          await uploadCategoryImage(response.category._id, newCategory.icon);
+        }
+        
+        toast.success('Category added successfully');
+      }
+      
+      setModalOpen(false);
+      fetchCategories();
+    } catch (error) {
+      toast.error(error.message || 'Failed to save category');
     }
-    setModalOpen(false);
-    setNewCategory({
-      name: '',
-      description: '',
-      icon: null,
-      active: true
-    });
   };
 
-  const handleToggleActive = (id) => {
-    setCategories(categories.map(category => 
-      category.id === id ? { ...category, active: !category.active } : category
-    ));
-  };
+  const handleDeleteCategory = async (categoryId) => {
+    if (!categoryId) {
+      toast.error('Invalid category ID');
+      return;
+    }
 
-  const handleDeleteCategory = (id) => {
-    setCategories(categories.filter(category => category.id !== id));
+    if (window.confirm('Are you sure you want to delete this category?')) {
+      try {
+        await deleteCategory(categoryId);
+        toast.success('Category deleted successfully');
+        fetchCategories();
+      } catch (error) {
+        toast.error(error.message || 'Failed to delete category');
+      }
+    }
   };
 
   return (
@@ -124,19 +151,13 @@ function ShopCategory() {
                 <div className="overflow-x-auto">
                   <table className="table-auto w-full dark:text-gray-300">
                     {/* Table header */}
-                    <thead className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/20">
+                    <thead className="text-xs uppercase text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700/20">
                       <tr>
                         <th className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
                           <div className="font-semibold text-left">Name</div>
                         </th>
                         <th className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
                           <div className="font-semibold text-left">Description</div>
-                        </th>
-                        <th className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                          <div className="font-semibold text-left">Products</div>
-                        </th>
-                        <th className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                          <div className="font-semibold text-left">Status</div>
                         </th>
                         <th className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
                           <div className="font-semibold text-right">Actions</div>
@@ -146,11 +167,11 @@ function ShopCategory() {
                     {/* Table body */}
                     <tbody className="text-sm divide-y divide-gray-100 dark:divide-gray-700">
                       {categories.map(category => (
-                        <tr key={category.id}>
+                        <tr key={category._id}>
                           <td className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
                             <div className="flex items-center">
-                              {category.icon && (
-                                <img src={category.icon} alt="" className="w-6 h-6 rounded-full mr-2" />
+                              {category.image && (
+                                <img src={category.image.url} alt="" className="w-6 h-6 rounded-full mr-2" />
                               )}
                               <div className="font-medium text-gray-800 dark:text-gray-100">{category.name}</div>
                             </div>
@@ -159,34 +180,21 @@ function ShopCategory() {
                             <div className="text-left max-w-xs truncate">{category.description}</div>
                           </td>
                           <td className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                            <div className="text-left font-medium text-sky-500">{category.productsCount}</div>
-                          </td>
-                          <td className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                            <button
-                              onClick={() => handleToggleActive(category.id)}
-                              className={`px-3 py-1 rounded-full text-sm ${
-                                category.active 
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-400'
-                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                              }`}
-                            >
-                              {category.active ? 'Active' : 'Inactive'}
-                            </button>
-                          </td>
-                          <td className="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                            <div className="flex items-center justify-end space-x-3">
+                            <div className="flex justify-end space-x-3">
                               <button
                                 onClick={() => handleEditCategory(category)}
-                                className="text-gray-400 hover:text-gray-500"
+                                className="text-violet-500 hover:text-violet-600"
                               >
+                                <span className="sr-only">Edit</span>
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                               </button>
                               <button
-                                onClick={() => handleDeleteCategory(category.id)}
+                                onClick={() => handleDeleteCategory(category._id)}
                                 className="text-red-500 hover:text-red-600"
                               >
+                                <span className="sr-only">Delete</span>
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>

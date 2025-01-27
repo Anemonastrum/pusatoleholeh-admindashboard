@@ -7,12 +7,8 @@ function AddBannerModal({
   onSubmit,
   newBanner,
   setNewBanner,
+  isEditing
 }) {
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(e);
-  };
-
   return (
     <>
       {/* Modal Backdrop */}
@@ -43,7 +39,9 @@ function AddBannerModal({
           {/* Modal header */}
           <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700/60">
             <div className="flex justify-between items-center">
-              <div className="font-semibold text-gray-800 dark:text-gray-100">Add New Banner</div>
+              <div className="font-semibold text-gray-800 dark:text-gray-100">
+                {isEditing ? 'Edit Banner' : 'Add New Banner'}
+              </div>
               <button className="text-gray-400 hover:text-gray-500" onClick={() => setModalOpen(false)}>
                 <div className="sr-only">Close</div>
                 <svg className="w-4 h-4 fill-current">
@@ -54,48 +52,23 @@ function AddBannerModal({
           </div>
           {/* Modal content */}
           <div className="px-5 py-4">
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={onSubmit}>
               <div className="space-y-4">
-                {/* Banner Title */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="title">
-                    Banner Title
-                  </label>
-                  <input
-                    id="title"
-                    className="form-input w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700/60 bg-white dark:bg-gray-800"
-                    type="text"
-                    required
-                    value={newBanner.title}
-                    onChange={(e) => setNewBanner({ ...newBanner, title: e.target.value })}
-                  />
-                </div>
-                {/* Banner Image */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="image">
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1" htmlFor="banner">
                     Banner Image
                   </label>
                   <input
-                    id="image"
+                    id="banner"
                     className="form-input w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700/60 bg-white dark:bg-gray-800"
                     type="file"
                     accept="image/*"
                     required
-                    onChange={(e) => setNewBanner({ ...newBanner, image: e.target.files[0] })}
+                    onChange={(e) => setNewBanner({ ...newBanner, banner: e.target.files[0] })}
                   />
-                </div>
-                {/* Active Status */}
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="active"
-                    className="form-checkbox"
-                    checked={newBanner.active}
-                    onChange={(e) => setNewBanner({ ...newBanner, active: e.target.checked })}
-                  />
-                  <label className="text-sm text-gray-800 dark:text-gray-300 ml-2" htmlFor="active">
-                    Active
-                  </label>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Recommended size: 1920x1080px
+                  </p>
                 </div>
               </div>
               <div className="flex items-center justify-end mt-6">
@@ -110,7 +83,7 @@ function AddBannerModal({
                   type="submit"
                   className="btn-sm bg-violet-500 hover:bg-violet-600 text-white ml-3"
                 >
-                  Add Banner
+                  {isEditing ? 'Update Banner' : 'Add Banner'}
                 </button>
               </div>
             </form>
